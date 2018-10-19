@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.IO;
 
-namespace noiSNESs_Brr_Finder
+namespace noiSNESs_SoundLib
 {
     public sealed class Brr
     {
@@ -24,11 +24,11 @@ namespace noiSNESs_Brr_Finder
             return rawSamples.SelectMany(BitConverter.GetBytes).ToArray();
         }
 
-        public static void playBrr(byte[] brr, uint sampleRate)
+        public static void playBrr(byte[] brr, uint sampleRate, bool applyGaussFilter = true)
         {
             bool loopedRef = false;
 
-            byte[] wav = decodeBRRToWav(brr, ref loopedRef, true, true, 16, 1, sampleRate);
+            byte[] wav = decodeBRRToWav(brr, ref loopedRef, true, applyGaussFilter, 16, 1, sampleRate);
             using (MemoryStream msw = new MemoryStream(wav))
             {
                 // Construct the sound player
@@ -68,9 +68,28 @@ namespace noiSNESs_Brr_Finder
             buffer[length - 1] = Convert.ToInt16(last / 2048);
         }
 
+        public static byte[] truncateBRR(byte[] brr, int newLength)
+        {
+            //Make length a product of 9
+            newLength = newLength - (newLength % 9);
+
+            //Avoid bad input data
+            if (brr == null || brr.Length < 9 || newLength < 9)
+                return new byte[] { };
+
+            //Return the same if no truncation needed
+            if (brr.Length <= newLength)
+                return brr.ToArray();
+
+            //Truncate and mark last sample as end-of-brr
+            byte[] output = brr.Take(newLength).ToArray();
+            output[newLength - 9] = Convert.ToByte((output[newLength - 9] & 0x00FC) | 0x0001);
+            return output;
+        }
+
         #region Export brr
 
-        public static List<Int16> decodeBRRToInt16(byte[] brr, ref bool ptrLooped, bool checkMultiplicy=true)
+        public static List<Int16> decodeBRRToInt16(byte[] brr, ref bool ptrLooped, bool checkMultiplicy = true)
         {
             List<Int16> rawSamples = new List<Int16>();
 
@@ -181,7 +200,7 @@ namespace noiSNESs_Brr_Finder
                 int startIndex = (rawSamples.Count * 9) / 16;
                 rawSamples.AddRange(decodeBRRToInt16(brr.Skip(startIndex).ToArray(), ref ptrLooped, false));
             }
-            
+
             if (rawSamples.Count <= 0)
                 return new byte[] { };
 
@@ -804,7 +823,7 @@ namespace noiSNESs_Brr_Finder
                     double b = i * ratio - a;
                     double b2 = b * b;
                     double b3 = b2 * b;
-                    output[i] = Convert.ToInt16(b3 * a0 + b2 * a1 + b * a2 + s1);
+                    output[i] = Convert.ToInt16(Math.Max(Math.Min(b3 * a0 + b2 * a1 + b * a2 + s1, Int16.MaxValue), Int16.MinValue));
                 }
 
                 return output;

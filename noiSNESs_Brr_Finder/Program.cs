@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using noiSNESs_SoundLib;
 
 namespace noiSNESs_Brr_Finder
 {
@@ -10,9 +11,10 @@ namespace noiSNESs_Brr_Finder
         private static string _fileName = string.Empty;
         private static string _additionalErrMessage = String.Empty;
 
-        private static int  _minimumSize = 450;
         private static uint _samplerate = 0;
+        private static bool _gaussian = false;
 
+        private static int _minimumSize           = 450;
         private static int _minimumStdDeviation   = 80;
         private static int _maximumStdDeviation   = 100;
         private static int _maximumModePercentage = 20;
@@ -54,7 +56,7 @@ namespace noiSNESs_Brr_Finder
                 _maximumStdDeviation, _maximumModePercentage);
 
             string destinationDirectory =
-                Path.GetDirectoryName(_fileName) +
+                Path.GetDirectoryName(Path.GetFullPath(_fileName)) +
                 Path.DirectorySeparatorChar +
                 Path.GetFileNameWithoutExtension(_fileName);
             Directory.CreateDirectory(destinationDirectory);
@@ -74,7 +76,7 @@ namespace noiSNESs_Brr_Finder
                 if (_samplerate > 0)
                 {
                     bool loopedRef = false;
-                    byte[] wav = Brr.decodeBRRToWav(brr, ref loopedRef, true, true, 16, 1, _samplerate);
+                    byte[] wav = Brr.decodeBRRToWav(brr, ref loopedRef, true, _gaussian, 16, 1, _samplerate);
                     File.WriteAllBytes(newName + "_" + _samplerate + ".wav", wav);
                 }
             }
@@ -126,6 +128,10 @@ namespace noiSNESs_Brr_Finder
                             _maximumModePercentage = int.Parse(args[3]);
                             args = args.Skip(4).ToArray();
                             break;
+                        case "-g":
+                            _gaussian = true;
+                            args = args.Skip(1).ToArray();
+                            break;
                         default:
                             return false;
                     }
@@ -175,6 +181,7 @@ namespace noiSNESs_Brr_Finder
             Console.WriteLine("Options:");
             Console.WriteLine("\t-m <size> Minimum size of brr chunk. (Default 450)");
             Console.WriteLine("\t-w <samplerate> Export files as .wav with the given samplerate.");
+            Console.WriteLine("\t-g Apply a SNES gaussian filter to the output. (Disabled by default)");
             Console.WriteLine("\t-s <min_std_deviation max_std_deviation max_mode%> Statistics");
             Console.WriteLine("\t   a brr sample should match to not be considered as a false");
             Console.WriteLine("\t   positives. The default values are 80, 100, and 20.");
